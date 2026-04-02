@@ -27,6 +27,7 @@ export default function PrincipalLayout() {
           <NavLink to="/principal/dashboard" style={navStyle}>Dashboard</NavLink>
           <NavLink to="/principal/users"     style={navStyle}>All Users</NavLink>
           <NavLink to="/principal/departments" style={navStyle}>Departments</NavLink>
+          <NavLink to="/principal/delete-batch" style={navStyle}>Delete Batch</NavLink>
         </nav>
 
         <button onClick={handleLogout} style={styles.logout}>Logout</button>
