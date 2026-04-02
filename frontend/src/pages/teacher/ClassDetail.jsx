@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import API from '../../api/axios'
 import { downloadCSV, downloadExcel } from '../../utils/exportClass'
+import AutoSearch from '../../components/AutoSearch'
 
 export default function ClassDetail() {
   const { id }                        = useParams()
@@ -201,11 +202,13 @@ export default function ClassDetail() {
         )}
 
         <div style={styles.searchRow}>
-          <input
+          <AutoSearch
             placeholder="Search enrolled students..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={styles.searchInput}
+            items={enrollments}
+            searchKeys={['student_name', 'roll_number']}
+            storageKey={`class_${id}_search`}
+            onSearch={val => setSearch(val)}
+            onSelect={en => setSearch(en.student_name)}
           />
           <span style={styles.resultCount}>
             {filteredEnrollments.length} of {enrollments.length} students
@@ -292,13 +295,13 @@ const styles = {
   cardTopRow:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '16px 20px', borderBottom: '1px solid #f1f5f9' },
   cardTitle:      { fontSize: '16px', fontWeight: '600', color: '#0f172a', margin: 0 },
-  btnGroup:       { display: 'flex', gap: '8px', alignItems: 'center' },   // ← added
+  btnGroup:       { display: 'flex', gap: '8px', alignItems: 'center' },
   csvBtn:         { padding: '7px 14px', backgroundColor: '#f0fdf4', color: '#16a34a',
                     border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer',
-                    fontSize: '13px', fontWeight: '500' },                  // ← added
+                    fontSize: '13px', fontWeight: '500' },
   excelBtn:       { padding: '7px 14px', backgroundColor: '#eff6ff', color: '#2563eb',
                     border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer',
-                    fontSize: '13px', fontWeight: '500' },                  // ← added
+                    fontSize: '13px', fontWeight: '500' },
   addBtn:         { padding: '8px 16px', backgroundColor: '#0d9488', color: '#fff',
                     border: 'none', borderRadius: '6px', cursor: 'pointer',
                     fontSize: '14px', fontWeight: '500' },

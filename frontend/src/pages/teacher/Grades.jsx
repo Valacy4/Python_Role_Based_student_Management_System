@@ -201,47 +201,66 @@ export default function TeacherGrades() {
           </div>
 
           {/* Grades table */}
-          {classGrades.length > 0 && (
-            <div style={styles.card}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Student</th>
-                    <th style={styles.th}>Exam</th>
-                    <th style={styles.th}>Marks</th>
-                    <th style={styles.th}>Percentage</th>
-                    <th style={styles.th}>Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classGrades.map(g => (
-                    <tr key={g.id}>
-                      <td style={styles.td}>{g.student_name}</td>
-                      <td style={styles.td}>{g.exam_type}</td>
-                      <td style={styles.td}>{g.marks}/{g.max_marks}</td>
-                      <td style={styles.td}>
-                        <span style={{
-                          fontWeight: '600',
-                          color: g.percentage >= 75 ? '#16a34a'
-                               : g.percentage >= 50 ? '#d97706'
-                               : '#dc2626'
-                        }}>
-                          {g.percentage}%
-                        </span>
-                      </td>
-                      <td style={{...styles.td, color: '#94a3b8'}}>
-                        {g.remarks || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* Grades table — grouped by student */}
+{classGrades.length > 0 && (
+  <div style={styles.card}>
+    <table style={styles.table}>
+      <thead>
+        <tr>
+          <th style={styles.th}>Student</th>
+          <th style={styles.th}>Roll No</th>
+          <th style={styles.th}>Internal 1</th>
+          <th style={styles.th}>Internal 2</th>
+          <th style={styles.th}>Assignment</th>
+          <th style={styles.th}>Final</th>
+          <th style={styles.th}>Overall %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {enrollments.map(en => {
+          const enGrades   = classGrades.filter(g => g.enrollment === en.id)
+          const internal1  = enGrades.find(g => g.exam_type === 'internal1')
+          const internal2  = enGrades.find(g => g.exam_type === 'internal2')
+          const assignment = enGrades.find(g => g.exam_type === 'assignment')
+          const final      = enGrades.find(g => g.exam_type === 'final')
 
-          {classGrades.length === 0 && (
-            <p style={{color: '#64748b'}}>No grades added yet for this class.</p>
-          )}
+          const totalMarks = enGrades.reduce((s,g) => s + parseFloat(g.marks    || 0), 0)
+          const totalMax   = enGrades.reduce((s,g) => s + parseFloat(g.max_marks || 0), 0)
+          const overall    = totalMax > 0 ? Math.round((totalMarks/totalMax)*100) : null
+          const col        = overall !== null
+            ? overall >= 75 ? '#16a34a' : overall >= 50 ? '#d97706' : '#dc2626'
+            : '#94a3b8'
+
+          const fmt = (g) => g
+            ? <span>{g.marks}<span style={{color:'#94a3b8'}}>/{g.max_marks}</span></span>
+            : <span style={{color:'#e2e8f0'}}>—</span>
+
+          if (enGrades.length === 0) return null
+
+          return (
+            <tr key={en.id}>
+              <td style={styles.td}>{en.student_name}</td>
+              <td style={styles.td}>
+                <span style={styles.rollBadge}>{en.roll_number}</span>
+              </td>
+              <td style={styles.td}>{fmt(internal1)}</td>
+              <td style={styles.td}>{fmt(internal2)}</td>
+              <td style={styles.td}>{fmt(assignment)}</td>
+              <td style={styles.td}>{fmt(final)}</td>
+              <td style={styles.td}>
+                {overall !== null ? (
+                  <span style={{color:col, fontWeight:'600'}}>{overall}%</span>
+                ) : (
+                  <span style={{color:'#94a3b8'}}>—</span>
+                )}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
         </>
       )}
     </div>
@@ -279,4 +298,6 @@ const styles = {
                 backgroundColor: '#f8fafc' },
   td:         { padding: '12px 16px', fontSize: '14px', color: '#374151',
                 borderBottom: '1px solid #f8fafc' },
+  rollBadge: { backgroundColor:'#f1f5f9', color:'#475569', padding:'3px 8px',
+             borderRadius:'4px', fontSize:'12px', fontWeight:'500' },
 }

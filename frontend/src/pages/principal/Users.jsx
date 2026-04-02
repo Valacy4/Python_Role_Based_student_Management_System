@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import API from '../../api/axios'
+import AutoSearch from '../../components/AutoSearch'   // ← added
 
 const PAGE_SIZE = 20
 
@@ -33,11 +34,10 @@ export default function PrincipalUsers() {
     }
   }, [location.state])
 
-  // Reset to page 1 when search/filter/sort changes
   useEffect(() => { setPage(1) }, [search, filter, sortBy, sortDir])
 
   const handleDelete = async (e, id) => {
-    e.stopPropagation()  // prevent row click when deleting
+    e.stopPropagation()
     if (!window.confirm('Are you sure you want to delete this user?')) return
     try {
       await API.delete(`/auth/users/${id}/`)
@@ -48,12 +48,8 @@ export default function PrincipalUsers() {
   }
 
   const toggleSort = (field) => {
-    if (sortBy === field) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortDir('asc')
-    }
+    if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortBy(field); setSortDir('asc') }
   }
 
   const roleColors = {
@@ -69,7 +65,6 @@ export default function PrincipalUsers() {
     student:   users.filter(u => u.role === 'student').length,
   }
 
-  // Filter
   const afterFilter = users.filter(u => {
     const matchSearch =
       (u.first_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -80,7 +75,6 @@ export default function PrincipalUsers() {
     return matchSearch && matchRole
   })
 
-  // Sort
   const afterSort = [...afterFilter].sort((a, b) => {
     let aVal, bVal
     switch (sortBy) {
@@ -105,17 +99,15 @@ export default function PrincipalUsers() {
         bVal = b.is_active ? 1 : 0
         break
       default:
-        aVal = ''
-        bVal = ''
+        aVal = ''; bVal = ''
     }
     if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
     return 0
   })
 
-  // Paginate
-  const totalPages  = Math.ceil(afterSort.length / PAGE_SIZE)
-  const paginated   = afterSort.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.ceil(afterSort.length / PAGE_SIZE)
+  const paginated  = afterSort.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const SortIcon = ({ field }) => {
     if (sortBy !== field) return <span style={styles.sortIconInactive}>↕</span>
@@ -124,7 +116,6 @@ export default function PrincipalUsers() {
 
   return (
     <div>
-      {/* Header */}
       <div style={styles.topRow}>
         <div>
           <h2 style={styles.heading}>All Users</h2>
@@ -137,7 +128,6 @@ export default function PrincipalUsers() {
 
       {successMsg && <div style={styles.successMsg}>{successMsg}</div>}
 
-      {/* Role filter pills */}
       <div style={styles.summaryRow}>
         {['all', 'principal', 'hod', 'teacher', 'student'].map(role => (
           <button
@@ -161,13 +151,15 @@ export default function PrincipalUsers() {
         ))}
       </div>
 
-      {/* Search + Sort row */}
+      {/* Search + Sort row — AutoSearch replaces plain input */}
       <div style={styles.filterRow}>
-        <input
+        <AutoSearch
           placeholder="Search by name, email or username..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={styles.search}
+          items={users}
+          searchKeys={['first_name', 'email', 'username']}
+          storageKey="principal_users_search"
+          onSearch={val => setSearch(val)}
+          onSelect={u => setSearch(u.first_name)}
         />
         <div style={styles.sortGroup}>
           <span style={styles.sortLabel}>Sort by</span>
@@ -185,7 +177,6 @@ export default function PrincipalUsers() {
           <button
             onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
             style={styles.sortDirBtn}
-            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
           >
             {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
           </button>
@@ -223,7 +214,7 @@ export default function PrincipalUsers() {
                   <tr
                     key={u.id}
                     style={styles.tr}
-                    onClick={() => navigate(`/principal/edit-user/${u.id}`)}
+                    onClick={() => navigate(`/principal/user/${u.id}`)}
                     onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
@@ -233,9 +224,7 @@ export default function PrincipalUsers() {
                         <div style={{...styles.avatar, backgroundColor: roleColors[u.role] || '#64748b'}}>
                           {(u.first_name || '?').charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                          <div style={styles.fullName}>{u.first_name} {u.last_name}</div>
-                        </div>
+                        <div style={styles.fullName}>{u.first_name} {u.last_name}</div>
                       </div>
                     </td>
                     <td style={styles.td}>{u.email}</td>
@@ -249,10 +238,7 @@ export default function PrincipalUsers() {
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <span style={{
-                        color:      u.is_active ? '#16a34a' : '#dc2626',
-                        fontWeight: '500', fontSize: '13px',
-                      }}>
+                      <span style={{color: u.is_active ? '#16a34a' : '#dc2626', fontWeight:'500', fontSize:'13px'}}>
                         {u.is_active ? '● Active' : '● Inactive'}
                       </span>
                     </td>
@@ -261,13 +247,8 @@ export default function PrincipalUsers() {
                         <button
                           onClick={e => { e.stopPropagation(); navigate(`/principal/edit-user/${u.id}`) }}
                           style={styles.editBtn}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={e => handleDelete(e, u.id)}
-                          style={styles.deleteBtn}
-                        >
+                        >Edit</button>
+                        <button onClick={e => handleDelete(e, u.id)} style={styles.deleteBtn}>
                           Remove
                         </button>
                       </div>
@@ -276,7 +257,6 @@ export default function PrincipalUsers() {
                 ))}
               </tbody>
             </table>
-
             {paginated.length === 0 && (
               <p style={{color:'#64748b', padding:'20px', textAlign:'center'}}>
                 {search ? `No users matching "${search}"` : 'No users found.'}
@@ -284,33 +264,20 @@ export default function PrincipalUsers() {
             )}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div style={styles.pagination}>
               <span style={styles.pageInfo}>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, afterSort.length)} of {afterSort.length} users
+                Showing {(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE, afterSort.length)} of {afterSort.length} users
               </span>
               <div style={styles.pageButtons}>
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  style={{...styles.pageBtn, ...(page === 1 ? styles.pageBtnDisabled : {})}}
-                >
-                  «
-                </button>
-                <button
-                  onClick={() => setPage(p => p - 1)}
-                  disabled={page === 1}
-                  style={{...styles.pageBtn, ...(page === 1 ? styles.pageBtnDisabled : {})}}
-                >
-                  ← Previous
-                </button>
-
-                {/* Page number buttons */}
-                {Array.from({length: totalPages}, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                <button onClick={() => setPage(1)} disabled={page===1}
+                  style={{...styles.pageBtn, ...(page===1 ? styles.pageBtnDisabled : {})}}>«</button>
+                <button onClick={() => setPage(p=>p-1)} disabled={page===1}
+                  style={{...styles.pageBtn, ...(page===1 ? styles.pageBtnDisabled : {})}}>← Previous</button>
+                {Array.from({length: totalPages}, (_, i) => i+1)
+                  .filter(p => p===1 || p===totalPages || Math.abs(p-page)<=1)
                   .reduce((acc, p, idx, arr) => {
-                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
+                    if (idx > 0 && p - arr[idx-1] > 1) acc.push('...')
                     acc.push(p)
                     return acc
                   }, [])
@@ -318,38 +285,19 @@ export default function PrincipalUsers() {
                     p === '...' ? (
                       <span key={`dots-${idx}`} style={styles.pageDots}>...</span>
                     ) : (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        style={{
-                          ...styles.pageBtn,
-                          ...(page === p ? styles.pageBtnActive : {})
-                        }}
-                      >
+                      <button key={p} onClick={() => setPage(p)}
+                        style={{...styles.pageBtn, ...(page===p ? styles.pageBtnActive : {})}}>
                         {p}
                       </button>
                     )
-                  )
-                }
-
-                <button
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page === totalPages}
-                  style={{...styles.pageBtn, ...(page === totalPages ? styles.pageBtnDisabled : {})}}
-                >
-                  Next →
-                </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  style={{...styles.pageBtn, ...(page === totalPages ? styles.pageBtnDisabled : {})}}
-                >
-                  »
-                </button>
+                  )}
+                <button onClick={() => setPage(p=>p+1)} disabled={page===totalPages}
+                  style={{...styles.pageBtn, ...(page===totalPages ? styles.pageBtnDisabled : {})}}>Next →</button>
+                <button onClick={() => setPage(totalPages)} disabled={page===totalPages}
+                  style={{...styles.pageBtn, ...(page===totalPages ? styles.pageBtnDisabled : {})}}>»</button>
               </div>
             </div>
           )}
-
           <p style={styles.resultCount}>
             Showing {paginated.length} of {afterSort.length} filtered users
             {afterSort.length !== users.length && ` (${users.length} total)`}
@@ -370,43 +318,32 @@ const styles = {
                      marginBottom:'16px', fontSize:'14px', border:'1px solid #bbf7d0', marginTop:'16px' },
   summaryRow:      { display:'flex', gap:'8px', margin:'20px 0 16px', flexWrap:'wrap' },
   summaryPill:     { display:'flex', alignItems:'center', gap:'8px', padding:'6px 14px',
-                     borderRadius:'20px', border:'none', cursor:'pointer', fontSize:'13px',
-                     fontWeight:'500', transition:'all 0.15s' },
+                     borderRadius:'20px', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'500' },
   pillCount:       { padding:'2px 7px', borderRadius:'10px', fontSize:'12px', fontWeight:'600' },
   filterRow:       { display:'flex', gap:'12px', marginBottom:'16px', alignItems:'center' },
-  search:          { padding:'8px 14px', border:'1px solid #e2e8f0', borderRadius:'6px',
-                     fontSize:'14px', flex:1, outline:'none' },
   sortGroup:       { display:'flex', alignItems:'center', gap:'8px' },
   sortLabel:       { fontSize:'13px', color:'#64748b', whiteSpace:'nowrap' },
-  select:          { padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:'6px',
-                     fontSize:'13px', outline:'none' },
+  select:          { padding:'8px 12px', border:'1px solid #e2e8f0', borderRadius:'6px', fontSize:'13px', outline:'none' },
   sortDirBtn:      { padding:'7px 12px', border:'1px solid #e2e8f0', borderRadius:'6px',
-                     backgroundColor:'#f8fafc', cursor:'pointer', fontSize:'13px',
-                     color:'#374151', whiteSpace:'nowrap' },
+                     backgroundColor:'#f8fafc', cursor:'pointer', fontSize:'13px', color:'#374151', whiteSpace:'nowrap' },
   card:            { backgroundColor:'#fff', borderRadius:'10px', border:'1px solid #e2e8f0', overflow:'hidden' },
   table:           { width:'100%', borderCollapse:'collapse' },
   th:              { textAlign:'left', padding:'12px 16px', fontSize:'13px', color:'#64748b',
-                     borderBottom:'1px solid #f1f5f9', backgroundColor:'#f8fafc',
-                     userSelect:'none' },
+                     borderBottom:'1px solid #f1f5f9', backgroundColor:'#f8fafc', userSelect:'none' },
   tr:              { cursor:'pointer', transition:'background 0.1s' },
   td:              { padding:'12px 16px', fontSize:'14px', color:'#374151', borderBottom:'1px solid #f8fafc' },
   nameRow:         { display:'flex', alignItems:'center', gap:'10px' },
   avatar:          { width:'32px', height:'32px', borderRadius:'50%', display:'flex',
-                     alignItems:'center', justifyContent:'center', color:'#fff',
-                     fontWeight:'600', fontSize:'13px', flexShrink:0 },
+                     alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:'600', fontSize:'13px', flexShrink:0 },
   fullName:        { fontWeight:'500', color:'#0f172a', fontSize:'14px' },
-  usernameBadge:   { fontSize:'12px', color:'#64748b', backgroundColor:'#f1f5f9',
-                     padding:'2px 7px', borderRadius:'4px' },
+  usernameBadge:   { fontSize:'12px', color:'#64748b', backgroundColor:'#f1f5f9', padding:'2px 7px', borderRadius:'4px' },
   roleBadge:       { color:'#fff', padding:'3px 10px', borderRadius:'20px', fontSize:'12px', fontWeight:'500' },
   actionRow:       { display:'flex', gap:'6px' },
   editBtn:         { padding:'4px 10px', backgroundColor:'#eff6ff', color:'#2563eb',
-                     border:'1px solid #bfdbfe', borderRadius:'4px', cursor:'pointer',
-                     fontSize:'12px', fontWeight:'500' },
+                     border:'1px solid #bfdbfe', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'500' },
   deleteBtn:       { padding:'4px 10px', backgroundColor:'#fee2e2', color:'#dc2626',
-                     border:'1px solid #fecaca', borderRadius:'4px', cursor:'pointer',
-                     fontSize:'12px', fontWeight:'500' },
-  pagination:      { display:'flex', justifyContent:'space-between', alignItems:'center',
-                     marginTop:'16px', flexWrap:'wrap', gap:'12px' },
+                     border:'1px solid #fecaca', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'500' },
+  pagination:      { display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'16px', flexWrap:'wrap', gap:'12px' },
   pageInfo:        { fontSize:'13px', color:'#64748b' },
   pageButtons:     { display:'flex', gap:'4px', alignItems:'center' },
   pageBtn:         { padding:'6px 12px', border:'1px solid #e2e8f0', borderRadius:'6px',

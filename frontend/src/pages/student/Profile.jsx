@@ -4,13 +4,14 @@ import { useAuth } from '../../context/AuthContext'
 import API from '../../api/axios'
 
 export default function StudentProfile() {
-  const { user }               = useAuth()
-  const [profile,  setProfile] = useState(null)
-  const [editing,  setEditing] = useState(false)
-  const [phone,    setPhone]   = useState('')
-  const [loading,  setLoading] = useState(true)
-  const [saved,    setSaved]   = useState(false)
-  const [error,    setError]   = useState('')
+  const { user }                  = useAuth()
+  const [profile,   setProfile]   = useState(null)
+  const [editing,   setEditing]   = useState(false)
+  const [phone,     setPhone]     = useState('')
+  const [createdAt, setCreatedAt] = useState('')   // ← added
+  const [loading,   setLoading]   = useState(true)
+  const [saved,     setSaved]     = useState(false)
+  const [error,     setError]     = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -20,13 +21,13 @@ export default function StudentProfile() {
       .then(([profileRes, whoamiRes]) => {
         setProfile(profileRes.data)
         setPhone(whoamiRes.data.phone || '')
+        setCreatedAt(whoamiRes.data.created_at || '')  // ← added
       })
       .catch(() => setError('Could not load profile.'))
       .finally(() => setLoading(false))
   }, [])
 
   const handleSave = async () => {
-    // Clear previous error before trying
     setError('')
     try {
       await API.patch('/auth/users/update-me/', { phone })
@@ -34,9 +35,7 @@ export default function StudentProfile() {
       setEditing(false)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      setError(
-        err.response?.data?.error || 'Failed to update profile.'
-      )
+      setError(err.response?.data?.error || 'Failed to update profile.')
     }
   }
 
@@ -46,15 +45,8 @@ export default function StudentProfile() {
     <div>
       <h2 style={styles.heading}>My Profile</h2>
 
-      {/* Error message */}
-      {error && (
-        <div style={styles.errorMsg}>{error}</div>
-      )}
-
-      {/* Success message */}
-      {saved && (
-        <div style={styles.successMsg}>Profile updated successfully!</div>
-      )}
+      {error && <div style={styles.errorMsg}>{error}</div>}
+      {saved && <div style={styles.successMsg}>Profile updated successfully!</div>}
 
       <div style={styles.card}>
         {/* Avatar */}
@@ -70,11 +62,12 @@ export default function StudentProfile() {
 
         {/* Info rows */}
         <div style={styles.infoGrid}>
-          <InfoRow label="Email"       value={user?.email} />
-          <InfoRow label="Roll Number" value={profile?.roll_number} />
-          <InfoRow label="Department"  value={profile?.department_name} />
-          <InfoRow label="Semester"    value={`Semester ${profile?.semester}`} />
-          <InfoRow label="Batch Year"  value={profile?.batch_year} />
+          <InfoRow label="Email"        value={user?.email} />
+          <InfoRow label="Roll Number"  value={profile?.roll_number} />
+          <InfoRow label="Department"   value={profile?.department_name} />
+          <InfoRow label="Semester"     value={`Semester ${profile?.semester}`} />
+          <InfoRow label="Batch Year"   value={profile?.batch_year} />
+          <InfoRow label="Member Since" value={createdAt} />  {/* ← added */}
 
           {/* Editable phone */}
           <div style={styles.infoRow}>

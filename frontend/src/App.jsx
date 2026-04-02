@@ -17,7 +17,9 @@ import PrincipalUsers     from './pages/principal/Users'
 import PrincipalDepartments from './pages/principal/Departments'
 import SubjectDetail from './pages/principal/SubjectDetail'
 import AddUser from './pages/principal/AddUser'
+import UserDetail from './pages/principal/UserDetail'
 import EditUser from './pages/principal/EditUser'
+import DeleteBatch from './pages/principal/DeleteBatch'
 
 import HODDashboard from './pages/hod/Dashboard'
 import HODTeachers  from './pages/hod/Teachers'
@@ -25,6 +27,8 @@ import HODStudents  from './pages/hod/Students'
 import HODMyClasses    from './pages/hod/MyClasses'
 import HODMyAttendance from './pages/hod/MyAttendance'
 import HODMyGrades     from './pages/hod/MyGrades'
+import TeacherDetail from './pages/hod/TeacherDetail'
+import StudentDetail from './pages/hod/StudentDetail'
 
 import TeacherDashboard  from './pages/teacher/Dashboard'
 import TeacherClasses    from './pages/teacher/Classes'
@@ -53,7 +57,9 @@ export default function App() {
             <Route path="departments" element={<PrincipalDepartments />} />
             <Route path="subjects/:id" element={<SubjectDetail />} />
             <Route path="add-user" element={<AddUser />} />
+            <Route path="user/:id" element={<UserDetail />} />
             <Route path="edit-user/:id" element={<EditUser />} />
+            <Route path="delete-batch" element={<DeleteBatch />} />
           </Route>
 
           <Route path="/hod" element={
@@ -63,7 +69,9 @@ export default function App() {
           }>
             <Route path="dashboard" element={<HODDashboard />} />
             <Route path="teachers"  element={<HODTeachers />} />
+            <Route path="teachers/:id"     element={<TeacherDetail />} />
             <Route path="students"  element={<HODStudents />} />
+            <Route path="students/:id"     element={<StudentDetail />} />
             <Route path="my-classes"    element={<HODMyClasses />} />
             <Route path="my-classes/:id" element={<ClassDetail />} />
             <Route path="my-attendance" element={<HODMyAttendance />} />

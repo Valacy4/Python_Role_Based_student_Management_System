@@ -95,6 +95,7 @@ class WhoAmIView(APIView):
             'role':      request.user.role,
             'email':     request.user.email,
             'phone':     request.user.phone,
+            'created_at': request.user.created_at.strftime('%d %B %Y')
         })
 
 
