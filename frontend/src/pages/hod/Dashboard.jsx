@@ -2,6 +2,15 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import API from '../../api/axios'
+import { motion } from 'framer-motion'
+import { Users, GraduationCap, Layers, BookOpen } from 'lucide-react'
+import StatCard from '../../components/ui/StatCard'
+import PageHeader from '../../components/ui/PageHeader'
+import Badge from '../../components/ui/Badge'
+import { SkeletonTable } from '../../components/ui/Skeleton'
+
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } }
+const item      = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
 export default function HODDashboard() {
   const { user }              = useAuth()
@@ -25,149 +34,163 @@ export default function HODDashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  // Group students by semester
   const bySemester = students.reduce((acc, s) => {
-    const sem = `Semester ${s.semester}`
-    if (!acc[sem]) acc[sem] = 0
-    acc[sem]++
+    const sem = `Sem ${s.semester}`
+    acc[sem] = (acc[sem] || 0) + 1
     return acc
   }, {})
 
   const cards = [
-    { label: 'Teachers in Dept', value: teachers.length,  color: '#0d9488', bg: '#f0fdfa' },
-    { label: 'Students in Dept', value: students.length,  color: '#2563eb', bg: '#eff6ff' },
-    { label: 'Total Classes',    value: classes.length,   color: '#7c3aed', bg: '#f5f3ff' },
-    { label: 'My Classes',       value: myClasses.length, color: '#d97706', bg: '#fffbeb' },
+    { label: 'Teachers in Dept', value: teachers.length,  color: '#0d9488', bg: '#f0fdfa', icon: Users        },
+    { label: 'Students in Dept', value: students.length,  color: '#2563eb', bg: '#eff6ff', icon: GraduationCap },
+    { label: 'Total Classes',    value: classes.length,   color: '#7c3aed', bg: '#f5f3ff', icon: Layers       },
+    { label: 'My Classes',       value: myClasses.length, color: '#d97706', bg: '#fffbeb', icon: BookOpen     },
   ]
 
   return (
     <div>
-      <h2 style={styles.heading}>Welcome, {user?.full_name}</h2>
-      <p style={styles.sub}>Department overview</p>
+      <PageHeader
+        title={`Welcome, ${user?.full_name}`}
+        subtitle="Department overview"
+      />
 
-      {loading ? <p style={{color:'#64748b'}}>Loading...</p> : (
-        <>
-          {/* Stats */}
-          <div style={styles.grid}>
-            {cards.map(card => (
-              <div key={card.label} style={{...styles.card, backgroundColor: card.bg}}>
-                <div style={{...styles.cardValue, color: card.color}}>{card.value}</div>
-                <div style={{...styles.cardLabel, color: card.color}}>{card.label}</div>
-              </div>
+      {loading ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <motion.div key={i} animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                className="h-24 bg-gray-100 dark:bg-gray-800 rounded-xl" />
             ))}
           </div>
+          <SkeletonTable rows={4} />
+        </div>
+      ) : (
+        <>
+          {/* Stat cards */}
+          <motion.div variants={container} initial="hidden" animate="show"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            {cards.map((card, i) => (
+              <motion.div key={card.label} variants={item}>
+                <StatCard {...card} delay={i * 0.06} />
+              </motion.div>
+            ))}
+          </motion.div>
 
-          <div style={styles.row}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
             {/* Students by semester */}
-            <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>Students by Semester</h3>
-              <div style={styles.tableCard}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Semester</th>
-                      <th style={styles.th}>Students</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(bySemester).map(([sem, count]) => (
-                      <tr key={sem}>
-                        <td style={styles.td}>{sem}</td>
-                        <td style={styles.td}>
-                          <span style={styles.countBadge}>{count}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 dark:border-gray-800">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Students by semester</h3>
               </div>
-            </div>
+              <div className="p-4 space-y-3">
+                {Object.entries(bySemester).sort().map(([sem, count], idx) => {
+                  const pct = Math.round((count / students.length) * 100)
+                  return (
+                    <div key={sem}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-600 dark:text-gray-400 font-medium">{sem}</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold">{count} students</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-blue-500 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.7, delay: 0.4 + idx * 0.08, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+                {Object.keys(bySemester).length === 0 && (
+                  <p className="text-sm text-gray-400 py-4 text-center">No students yet</p>
+                )}
+              </div>
+            </motion.div>
 
             {/* My teaching classes */}
-            <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>My Teaching Classes</h3>
-              <div style={styles.tableCard}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Subject</th>
-                      <th style={styles.th}>Year</th>
-                      <th style={styles.th}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myClasses.map(cls => (
-                      <tr key={cls.id}>
-                        <td style={styles.td}>{cls.subject_name}</td>
-                        <td style={styles.td}>{cls.academic_year}</td>
-                        <td style={styles.td}>
-                          <span style={{
-                            ...styles.statusDot,
-                            backgroundColor: cls.is_active ? '#dcfce7' : '#f1f5f9',
-                            color: cls.is_active ? '#16a34a' : '#64748b',
-                          }}>
-                            {cls.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {myClasses.length === 0 && (
-                      <tr>
-                        <td colSpan={3} style={{...styles.td, color:'#94a3b8'}}>
-                          No classes assigned yet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 dark:border-gray-800">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">My teaching classes</h3>
               </div>
-            </div>
-          </div>
-
-          {/* Teachers list */}
-          <div>
-            <h3 style={styles.sectionTitle}>Teachers in Department</h3>
-            <div style={styles.tableCard}>
-              <table style={styles.table}>
+              <table className="w-full text-sm">
                 <thead>
-                  <tr>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Employee ID</th>
-                    <th style={styles.th}>Specialization</th>
+                  <tr className="border-b border-gray-50 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/60">
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400">Subject</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400">Year</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map(t => (
-                    <tr key={t.id}>
-                      <td style={styles.td}>{t.full_name}</td>
-                      <td style={styles.td}>{t.employee_id}</td>
-                      <td style={styles.td}>{t.specialization || '—'}</td>
-                    </tr>
+                  {myClasses.map((cls, idx) => (
+                    <motion.tr key={cls.id}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      transition={{ delay: 0.45 + idx * 0.05 }}
+                      className="border-b border-gray-50 dark:border-gray-800
+                        transition-colors duration-150
+                        hover:bg-slate-50 dark:hover:bg-gray-800"
+                    >
+                      <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{cls.subject_name}</td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{cls.academic_year}</td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          label={cls.is_active ? 'Active' : 'Inactive'}
+                          color={cls.is_active ? '#16a34a' : '#64748b'}
+                          bg={cls.is_active ? '#dcfce7' : '#f1f5f9'}
+                        />
+                      </td>
+                    </motion.tr>
                   ))}
+                  {myClasses.length === 0 && (
+                    <tr><td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-400">
+                      No classes assigned yet
+                    </td></tr>
+                  )}
                 </tbody>
               </table>
-            </div>
+            </motion.div>
           </div>
+
+          {/* Teachers in dept */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Teachers in department</h3>
+              <span className="text-xs text-gray-400">{teachers.length} total</span>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-50 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/60">
+                  {['Name', 'Employee ID', 'Specialization'].map(h => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {teachers.map((t, idx) => (
+                  <motion.tr key={t.id}
+                    initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.55 + idx * 0.04 }}
+                    className="border-b border-gray-50 dark:border-gray-800
+                      transition-colors duration-150
+                      hover:bg-slate-50 dark:hover:bg-gray-800"
+                  >
+                    <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-200">{t.full_name}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{t.employee_id}</td>
+                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{t.specialization || '—'}</td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
         </>
       )}
     </div>
   )
-}
-
-const styles = {
-  heading:      { fontSize: '22px', fontWeight: '600', color: '#0f172a', marginBottom: '4px' },
-  sub:          { color: '#64748b', marginBottom: '28px', fontSize: '14px' },
-  grid:         { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '28px' },
-  card:         { padding: '20px', borderRadius: '10px', textAlign: 'center' },
-  cardValue:    { fontSize: '36px', fontWeight: '700', marginBottom: '4px' },
-  cardLabel:    { fontSize: '13px', fontWeight: '500' },
-  row:          { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' },
-  section:      {},
-  sectionTitle: { fontSize: '16px', fontWeight: '600', color: '#0f172a', marginBottom: '12px' },
-  tableCard:    { backgroundColor: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' },
-  table:        { width: '100%', borderCollapse: 'collapse' },
-  th:           { textAlign: 'left', padding: '12px 16px', fontSize: '13px', color: '#64748b', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc' },
-  td:           { padding: '12px 16px', fontSize: '14px', color: '#374151', borderBottom: '1px solid #f8fafc' },
-  countBadge:   { backgroundColor: '#eff6ff', color: '#2563eb', padding: '3px 10px', borderRadius: '20px', fontSize: '13px', fontWeight: '500' },
-  statusDot:    { padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500' },
 }

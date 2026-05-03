@@ -1,22 +1,25 @@
 // src/pages/principal/AddUser.jsx
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft } from 'lucide-react'
 import API from '../../api/axios'
+import Button from '../../components/ui/Button'
+import PageHeader from '../../components/ui/PageHeader'
+import toast from 'react-hot-toast'
 
 const INITIAL_FORM = {
-  first_name:     '',
-  last_name:      '',
-  email:          '',
-  username:       '',
-  password:       '',
-  role:           'student',
-  phone:          '',
-  employee_id:    '',
-  specialization: '',
-  department:     '',
-  roll_number:    '',
-  semester:       '1',
-  batch_year:     new Date().getFullYear().toString(),
+  first_name: '', last_name: '', email: '', username: '',
+  password: '', role: 'student', phone: '',
+  employee_id: '', specialization: '', department: '',
+  roll_number: '', semester: '1', batch_year: new Date().getFullYear().toString(),
+}
+
+const ROLE_META = {
+  principal: { color: '#7c3aed', label: 'Principal' },
+  hod:       { color: '#d97706', label: 'HOD'       },
+  teacher:   { color: '#0d9488', label: 'Teacher'   },
+  student:   { color: '#2563eb', label: 'Student'   },
 }
 
 export default function AddUser() {
@@ -31,7 +34,7 @@ export default function AddUser() {
     API.get('/departments/').then(res => setDepartments(res.data))
   }, [])
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
     setErrors(prev => ({ ...prev, [name]: '' }))
@@ -39,129 +42,76 @@ export default function AddUser() {
 
   const validate = () => {
     const err = {}
-    if (!form.first_name.trim()) err.first_name = 'First name is required'
-    if (!form.last_name.trim())  err.last_name  = 'Last name is required'
-    if (!form.email.trim())      err.email      = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) err.email = 'Enter a valid email'
-    if (!form.username.trim())   err.username   = 'Username is required'
-    if (!form.password.trim())   err.password   = 'Password is required'
-    else if (form.password.length < 8) err.password = 'Minimum 8 characters'
-    if (!form.phone.trim())      err.phone      = 'Phone is required'
+    if (!form.first_name.trim()) err.first_name = 'Required'
+    if (!form.last_name.trim())  err.last_name  = 'Required'
+    if (!form.email.trim())      err.email      = 'Required'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) err.email = 'Invalid email'
+    if (!form.username.trim())   err.username   = 'Required'
+    if (!form.password.trim())   err.password   = 'Required'
+    else if (form.password.length < 8) err.password = 'Min 8 characters'
+    if (!form.phone.trim())      err.phone      = 'Required'
     else if (!/^\d{10}$/.test(form.phone)) err.phone = 'Must be 10 digits'
-
     if (['teacher', 'hod'].includes(form.role)) {
-      if (!form.employee_id.trim()) err.employee_id = 'Employee ID is required'
-      if (!form.department)         err.department  = 'Department is required'
+      if (!form.employee_id.trim()) err.employee_id = 'Required'
+      if (!form.department)         err.department  = 'Required'
     }
     if (form.role === 'student') {
-      if (!form.roll_number.trim()) err.roll_number = 'Roll number is required'
-      if (!form.department)         err.department  = 'Department is required'
-      if (!form.semester)           err.semester    = 'Semester is required'
-      if (!form.batch_year)         err.batch_year  = 'Batch year is required'
+      if (!form.roll_number.trim()) err.roll_number = 'Required'
+      if (!form.department)         err.department  = 'Required'
     }
     return err
   }
 
-  // Helper to extract readable error from API response
-  const extractError = (data) => {
+  const extractError = data => {
     if (!data) return 'Unknown error'
     if (typeof data === 'string') return data
     if (data.detail) return data.detail
-    if (data.error)  return data.error
-    // Show all field errors
-    return Object.entries(data)
-      .map(([key, val]) => `${key}: ${Array.isArray(val) ? val[0] : val}`)
-      .join(' | ')
+    return Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v[0] : v}`).join(' | ')
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
     setApiError('')
     setErrors({})
-
     const validationErrors = validate()
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      return
-    }
-
+    if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return }
     setSaving(true)
     let newUser = null
-
     try {
-      // ── Step 1: Create user account ──────────────────
       const userRes = await API.post('/auth/users/', {
-        first_name: form.first_name,
-        last_name:  form.last_name,
-        email:      form.email,
-        username:   form.username,
-        password:   form.password,
-        role:       form.role,
-        phone:      form.phone,
+        first_name: form.first_name, last_name: form.last_name,
+        email: form.email, username: form.username,
+        password: form.password, role: form.role, phone: form.phone,
       })
       newUser = userRes.data
-
-      // ── Step 2: Create profile ────────────────────────
       if (['teacher', 'hod'].includes(form.role)) {
         await API.post('/teachers/', {
-          user:           newUser.id,
-          department:     parseInt(form.department),
-          employee_id:    form.employee_id,
-          specialization: form.specialization,
+          user: newUser.id, department: parseInt(form.department),
+          employee_id: form.employee_id, specialization: form.specialization,
         })
-
-        // ── Step 3: Assign HOD to department ─────────────
         if (form.role === 'hod') {
-          await API.patch(`/departments/${form.department}/`, {
-            hod: newUser.id
-          })
+          await API.patch(`/departments/${form.department}/`, { hod: newUser.id })
         }
       }
-
       if (form.role === 'student') {
         await API.post('/students/', {
-          user:        newUser.id,
-          department:  parseInt(form.department),
-          roll_number: form.roll_number,
-          semester:    parseInt(form.semester),
-          batch_year:  parseInt(form.batch_year),
+          user: newUser.id, department: parseInt(form.department),
+          roll_number: form.roll_number, semester: parseInt(form.semester),
+          batch_year: parseInt(form.batch_year),
         })
       }
-
-      // ── All steps passed ──────────────────────────────
-      navigate('/principal/users', {
-        state: { success: `${form.first_name} ${form.last_name} added successfully!` }
-      })
-
+      navigate('/principal/users', { state: { success: `${form.first_name} ${form.last_name} added successfully!` } })
     } catch (err) {
-      console.error('AddUser error:', err.response?.data)
       const data = err.response?.data
-
-      // If user was created but profile failed — clean up the user
       if (newUser) {
-        try {
-          await API.delete(`/auth/users/${newUser.id}/`)
-          setApiError(
-            `Profile creation failed and user was cleaned up. ` +
-            `Error: ${extractError(data)}`
-          )
-        } catch {
-          // Cleanup also failed — tell principal to delete manually
-          setApiError(
-            `Profile creation failed. ` +
-            `Please delete user "@${form.username}" from the Users page manually. ` +
-            `Error: ${extractError(data)}`
-          )
-        }
+        try { await API.delete(`/auth/users/${newUser.id}/`) } catch {}
+        setApiError(`Profile creation failed. Error: ${extractError(data)}`)
       } else {
-        // User creation itself failed
-        if (data?.email)    setErrors(p => ({...p, email:    data.email[0]}))
-        if (data?.username) setErrors(p => ({...p, username: data.username[0]}))
+        if (data?.email)    setErrors(p => ({ ...p, email: data.email[0] }))
+        if (data?.username) setErrors(p => ({ ...p, username: data.username[0] }))
         setApiError(`User creation failed: ${extractError(data)}`)
       }
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const isTeacherOrHOD = ['teacher', 'hod'].includes(form.role)
@@ -169,216 +119,162 @@ export default function AddUser() {
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} style={styles.backBtn}>
-        ← Back
-      </button>
+      <motion.button onClick={() => navigate(-1)} whileHover={{ x: -2 }}
+        className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-200
+          rounded-lg px-3 py-1.5 mb-6 bg-white hover:bg-gray-50 transition-colors">
+        <ArrowLeft size={14} /> Back
+      </motion.button>
 
-      <h2 style={styles.heading}>Add New User</h2>
-      <p style={styles.sub}>Fill in all required fields based on the role</p>
+      <PageHeader title="Add New User" subtitle="Fill in all required fields based on the role" />
 
       {apiError && (
-        <div style={styles.apiError}>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 mb-5 text-sm">
           <strong>Error:</strong> {apiError}
-        </div>
+        </motion.div>
       )}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
 
-        {/* Basic Info */}
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Basic Information</div>
-          <div style={styles.grid2}>
+        {/* Basic info */}
+        <Section title="Basic Information" delay={0.05}>
+          <div className="grid grid-cols-2 gap-4">
             <Field label="First Name *" name="first_name" value={form.first_name} onChange={handleChange} error={errors.first_name} placeholder="e.g. Rahul" />
             <Field label="Last Name *"  name="last_name"  value={form.last_name}  onChange={handleChange} error={errors.last_name}  placeholder="e.g. Kumar" />
-            <Field label="Email *"      name="email"      value={form.email}      onChange={handleChange} error={errors.email}      placeholder="rahul@sms.com" type="email" />
+            <Field label="Email *"      name="email"      value={form.email}      onChange={handleChange} error={errors.email}      type="email" placeholder="rahul@sms.com" />
             <Field label="Phone *"      name="phone"      value={form.phone}      onChange={handleChange} error={errors.phone}      placeholder="10 digit number" />
           </div>
-        </div>
+        </Section>
 
-        {/* Account Details */}
-        <div style={styles.section}>
-          <div style={styles.sectionTitle}>Account Details</div>
-          <div style={styles.grid2}>
+        {/* Account details */}
+        <Section title="Account Details" delay={0.1}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <Field label="Username *" name="username" value={form.username} onChange={handleChange} error={errors.username} placeholder="e.g. rahul_kumar" />
-            <Field label="Password *" name="password" value={form.password} onChange={handleChange} error={errors.password} placeholder="Min 8 characters" type="password" />
+            <Field label="Password *" name="password" value={form.password} onChange={handleChange} error={errors.password} type="password" placeholder="Min 8 characters" />
           </div>
-
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Role *</label>
-            <div style={styles.roleRow}>
-              {['student', 'teacher', 'hod', 'principal'].map(role => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => {
-                    setForm(prev => ({...prev, role}))
-                    setErrors({})
-                    setApiError('')
-                  }}
-                  style={{
-                    ...styles.roleBtn,
-                    ...(form.role === role ? styles.roleBtnActive : {}),
-                    ...(form.role === role ? roleColors[role] : {}),
-                  }}
-                >
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </button>
-              ))}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-2">Role *</label>
+            <div className="flex gap-2.5 flex-wrap">
+              {['student', 'teacher', 'hod', 'principal'].map(role => {
+                const m = ROLE_META[role]
+                const active = form.role === role
+                return (
+                  <motion.button key={role} type="button"
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    onClick={() => { setForm(p => ({ ...p, role })); setErrors({}); setApiError('') }}
+                    className="px-5 py-2 rounded-lg border text-sm font-medium transition-colors"
+                    style={active
+                      ? { backgroundColor: m.color, color: '#fff', borderColor: m.color }
+                      : { backgroundColor: 'var(--hover-row)', color: '#64748b', borderColor: '#e2e8f0' }}>
+                    {m.label}
+                  </motion.button>
+                )
+              })}
             </div>
           </div>
-        </div>
+        </Section>
 
-        {/* Teacher / HOD Profile */}
-        {isTeacherOrHOD && (
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>
-              {form.role === 'hod' ? 'HOD' : 'Teacher'} Profile
-            </div>
-            <div style={styles.grid2}>
-              <Field label="Employee ID *"  name="employee_id"    value={form.employee_id}    onChange={handleChange} error={errors.employee_id}    placeholder="e.g. CS_T006" />
-              <Field label="Specialization" name="specialization" value={form.specialization} onChange={handleChange} error={errors.specialization} placeholder="e.g. Data Science" />
-            </div>
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Department *</label>
-              <select
-                name="department"
-                value={form.department}
-                onChange={handleChange}
-                style={{...styles.input, ...(errors.department ? styles.inputError : {})}}
-              >
-                <option value="">-- Select Department --</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-              {errors.department && <span style={styles.fieldError}>{errors.department}</span>}
-            </div>
-            {form.role === 'hod' && (
-              <div style={styles.infoNote}>
-                This person will be assigned as HOD of the selected department.
-                The existing HOD will be replaced.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Student Profile */}
-        {isStudent && (
-          <div style={styles.section}>
-            <div style={styles.sectionTitle}>Student Profile</div>
-            <div style={styles.grid2}>
-              <Field label="Roll Number *" name="roll_number" value={form.roll_number} onChange={handleChange} error={errors.roll_number} placeholder="e.g. CS2024001" />
-              <Field label="Batch Year *"  name="batch_year"  value={form.batch_year}  onChange={handleChange} error={errors.batch_year}  placeholder="e.g. 2024" type="number" />
-            </div>
-            <div style={styles.grid2}>
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Semester *</label>
-                <select
-                  name="semester"
-                  value={form.semester}
-                  onChange={handleChange}
-                  style={{...styles.input, ...(errors.semester ? styles.inputError : {})}}
-                >
-                  {[1,2,3,4,5,6,7,8].map(s => (
-                    <option key={s} value={s}>Semester {s}</option>
-                  ))}
-                </select>
-                {errors.semester && <span style={styles.fieldError}>{errors.semester}</span>}
-              </div>
-              <div style={styles.fieldGroup}>
-                <label style={styles.label}>Department *</label>
-                <select
-                  name="department"
-                  value={form.department}
-                  onChange={handleChange}
-                  style={{...styles.input, ...(errors.department ? styles.inputError : {})}}
-                >
+        {/* Teacher/HOD profile */}
+        <AnimatePresence>
+          {isTeacherOrHOD && (
+            <motion.div key="teacher-section"
+              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+              <Section title={`${form.role === 'hod' ? 'HOD' : 'Teacher'} Profile`} delay={0}>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <Field label="Employee ID *"  name="employee_id"    value={form.employee_id}    onChange={handleChange} error={errors.employee_id}    placeholder="e.g. CS_T006" />
+                  <Field label="Specialization" name="specialization" value={form.specialization} onChange={handleChange} placeholder="e.g. Data Science" />
+                </div>
+                <SelectField label="Department *" name="department" value={form.department}
+                  onChange={handleChange} error={errors.department}>
                   <option value="">-- Select Department --</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                {errors.department && <span style={styles.fieldError}>{errors.department}</span>}
-              </div>
-            </div>
-          </div>
-        )}
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </SelectField>
+                {form.role === 'hod' && (
+                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                    This person will be assigned as HOD of the selected department.
+                    The existing HOD will be replaced.
+                  </div>
+                )}
+              </Section>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Student profile */}
+        <AnimatePresence>
+          {isStudent && (
+            <motion.div key="student-section"
+              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+              <Section title="Student Profile" delay={0}>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <Field label="Roll Number *" name="roll_number" value={form.roll_number} onChange={handleChange} error={errors.roll_number} placeholder="e.g. CS2024001" />
+                  <Field label="Batch Year *"  name="batch_year"  value={form.batch_year}  onChange={handleChange} error={errors.batch_year}  type="number" placeholder="e.g. 2024" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <SelectField label="Semester *" name="semester" value={form.semester}
+                    onChange={handleChange} error={errors.semester}>
+                    {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Semester {s}</option>)}
+                  </SelectField>
+                  <SelectField label="Department *" name="department" value={form.department}
+                    onChange={handleChange} error={errors.department}>
+                    <option value="">-- Select Department --</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </SelectField>
+                </div>
+              </Section>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Submit */}
-        <div style={styles.submitRow}>
-          <button type="button" onClick={() => navigate(-1)} style={styles.cancelBtn}>
-            Cancel
-          </button>
-          <button type="submit" disabled={saving} style={{
-            ...styles.submitBtn,
-            opacity: saving ? 0.7 : 1,
-            cursor:  saving ? 'not-allowed' : 'pointer',
-          }}>
-            {saving ? 'Creating...' : `Create ${form.role.charAt(0).toUpperCase() + form.role.slice(1)}`}
-          </button>
+        <div className="flex gap-3 justify-end pt-1">
+          <Button variant="outline" color="#64748b" onClick={() => navigate(-1)} type="button">Cancel</Button>
+          <Button type="submit" disabled={saving} color="#4f46e5">
+            {saving ? 'Creating...' : `Create ${ROLE_META[form.role]?.label}`}
+          </Button>
         </div>
-
       </form>
     </div>
   )
 }
 
+function Section({ title, children, delay = 0 }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="bg-white rounded-xl border border-gray-100 p-6">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-5">{title}</p>
+      {children}
+    </motion.div>
+  )
+}
+
 function Field({ label, name, value, onChange, error, placeholder, type = 'text' }) {
   return (
-    <div style={styles.fieldGroup}>
-      <label style={styles.label}>{label}</label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        style={{...styles.input, ...(error ? styles.inputError : {})}}
-      />
-      {error && <span style={styles.fieldError}>{error}</span>}
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
+        className={`px-3 py-2 border rounded-lg text-sm outline-none transition-all
+          focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+          ${error ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
+      {error && <span className="text-xs text-red-500">{error}</span>}
     </div>
   )
 }
 
-const roleColors = {
-  principal: { backgroundColor: '#7c3aed', color: '#fff', borderColor: '#7c3aed' },
-  hod:       { backgroundColor: '#d97706', color: '#fff', borderColor: '#d97706' },
-  teacher:   { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' },
-  student:   { backgroundColor: '#2563eb', color: '#fff', borderColor: '#2563eb' },
-}
-
-const styles = {
-  backBtn:      { background:'none', border:'1px solid #e2e8f0', borderRadius:'6px',
-                  padding:'6px 14px', cursor:'pointer', color:'#64748b',
-                  fontSize:'14px', marginBottom:'20px' },
-  heading:      { fontSize:'22px', fontWeight:'600', color:'#0f172a', marginBottom:'4px' },
-  sub:          { color:'#64748b', fontSize:'14px', marginBottom:'28px' },
-  apiError:     { backgroundColor:'#fef2f2', color:'#dc2626', padding:'12px 16px',
-                  borderRadius:'8px', marginBottom:'20px', fontSize:'14px',
-                  border:'1px solid #fecaca', lineHeight:'1.5' },
-  form:         { maxWidth:'720px' },
-  section:      { backgroundColor:'#fff', padding:'24px', borderRadius:'12px',
-                  border:'1px solid #e2e8f0', marginBottom:'16px' },
-  sectionTitle: { fontSize:'13px', fontWeight:'600', color:'#94a3b8',
-                  textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'16px' },
-  grid2:        { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'16px' },
-  fieldGroup:   { display:'flex', flexDirection:'column', gap:'6px', marginBottom:'12px' },
-  label:        { fontSize:'14px', fontWeight:'500', color:'#374151' },
-  input:        { padding:'9px 12px', border:'1px solid #d1d5db', borderRadius:'6px',
-                  fontSize:'14px', outline:'none', width:'100%', boxSizing:'border-box' },
-  inputError:   { borderColor:'#dc2626', backgroundColor:'#fff5f5' },
-  fieldError:   { color:'#dc2626', fontSize:'12px' },
-  roleRow:      { display:'flex', gap:'10px', flexWrap:'wrap' },
-  roleBtn:      { padding:'8px 20px', border:'1px solid #e2e8f0', borderRadius:'6px',
-                  cursor:'pointer', fontSize:'14px', backgroundColor:'#f8fafc',
-                  color:'#64748b', fontWeight:'500' },
-  roleBtnActive:{ fontWeight:'600' },
-  infoNote:     { backgroundColor:'#fffbeb', border:'1px solid #fde68a', borderRadius:'6px',
-                  padding:'10px 14px', fontSize:'13px', color:'#92400e', marginTop:'8px' },
-  submitRow:    { display:'flex', gap:'12px', justifyContent:'flex-end', marginTop:'8px' },
-  cancelBtn:    { padding:'10px 24px', backgroundColor:'#f1f5f9', color:'#374151',
-                  border:'1px solid #e2e8f0', borderRadius:'6px', cursor:'pointer',
-                  fontWeight:'500', fontSize:'14px' },
-  submitBtn:    { padding:'10px 28px', backgroundColor:'#4f46e5', color:'#fff',
-                  border:'none', borderRadius:'6px', fontWeight:'500', fontSize:'14px' },
+function SelectField({ label, name, value, onChange, error, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <select name={name} value={value} onChange={onChange}
+        className={`px-3 py-2 border rounded-lg text-sm outline-none transition-all
+          focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white
+          ${error ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}>
+        {children}
+      </select>
+      {error && <span className="text-xs text-red-500">{error}</span>}
+    </div>
+  )
 }

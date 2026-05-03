@@ -1,15 +1,19 @@
 // src/pages/hod/TeacherDetail.jsx
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { ArrowLeft } from 'lucide-react'
 import API from '../../api/axios'
+import Badge from '../../components/ui/Badge'
+import { SkeletonTable } from '../../components/ui/Skeleton'
 
 export default function TeacherDetail() {
-  const { id }                      = useParams()  // teacher profile id
-  const navigate                    = useNavigate()
-  const [teacher,  setTeacher]      = useState(null)
-  const [classes,  setClasses]      = useState([])
-  const [loading,  setLoading]      = useState(true)
-  const [error,    setError]        = useState('')
+  const { id }                 = useParams()
+  const navigate               = useNavigate()
+  const [teacher, setTeacher]  = useState(null)
+  const [classes, setClasses]  = useState([])
+  const [loading, setLoading]  = useState(true)
+  const [error,   setError]    = useState('')
 
   useEffect(() => {
     Promise.all([
@@ -17,129 +21,120 @@ export default function TeacherDetail() {
       API.get('/classes/'),
     ]).then(([tRes, clsRes]) => {
       setTeacher(tRes.data)
-      // Classes taught by this teacher
       setClasses(clsRes.data.filter(c => c.teacher === parseInt(id)))
     }).catch(() => setError('Could not load teacher details.'))
       .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <p style={{padding:'32px', color:'#64748b'}}>Loading...</p>
-  if (error)   return <p style={{padding:'32px', color:'#dc2626'}}>{error}</p>
-  if (!teacher) return <p style={{padding:'32px', color:'#dc2626'}}>Teacher not found.</p>
+  if (loading) return <div className="space-y-4"><SkeletonTable rows={5} /></div>
+  if (error)   return <p className="p-8 text-red-500">{error}</p>
+  if (!teacher) return <p className="p-8 text-red-500">Teacher not found.</p>
+
+  const infoRows = [
+    { label: 'Full Name',      value: teacher.full_name },
+    { label: 'Email',          value: teacher.email },
+    { label: 'Employee ID',    value: teacher.employee_id },
+    { label: 'Specialization', value: teacher.specialization || '—' },
+    { label: 'Department',     value: teacher.department_name || teacher.department },
+  ]
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} style={styles.backBtn}>← Back</button>
+      <motion.button onClick={() => navigate(-1)} whileHover={{ x: -2 }}
+        className="flex items-center gap-1.5 text-sm text-gray-500 border border-gray-200
+          rounded-lg px-3 py-1.5 mb-6 bg-white hover:bg-gray-50 transition-colors">
+        <ArrowLeft size={14} /> Back
+      </motion.button>
 
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.avatar}>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl border border-gray-100 p-6 mb-5 flex items-center gap-5">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+          transition={{ type: 'spring', delay: 0.1 }}
+          className="w-14 h-14 rounded-2xl bg-teal-600 flex items-center justify-center
+            text-white text-2xl font-bold shrink-0">
           {teacher.full_name?.charAt(0).toUpperCase()}
-        </div>
-        <div style={{flex:1}}>
-          <h2 style={styles.heading}>{teacher.full_name}</h2>
-          <div style={styles.metaRow}>
-            <span style={styles.roleBadge}>Teacher</span>
-            <span style={styles.meta}>{teacher.email}</span>
-            <span style={styles.meta}>Emp ID: {teacher.employee_id}</span>
+        </motion.div>
+        <div className="flex-1">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{teacher.full_name}</h2>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Badge label="Teacher" color="#0d9488" bg="#ccfbf1" />
+            <span className="text-sm text-gray-400">{teacher.email}</span>
+            <span className="text-sm text-gray-400">Emp ID: {teacher.employee_id}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Profile card */}
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>Teacher Profile</div>
-        <InfoRow label="Full Name"      value={teacher.full_name} />
-        <InfoRow label="Email"          value={teacher.email} />
-        <InfoRow label="Employee ID"    value={teacher.employee_id} />
-        <InfoRow label="Specialization" value={teacher.specialization || '—'} />
-        <InfoRow label="Department"     value={teacher.department_name || teacher.department} />
-      </div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-xl border border-gray-100 p-6 mb-5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+          Teacher Profile
+        </p>
+        <div className="divide-y divide-gray-50">
+          {infoRows.map(({ label, value }) => (
+            <div key={label} className="flex py-3">
+              <span className="w-40 text-sm text-gray-400 shrink-0">{label}</span>
+              <span className="text-sm font-medium text-gray-900">{value || '—'}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
 
       {/* Classes card */}
-      <div style={styles.card}>
-        <div style={styles.cardTitle}>
-          Teaching Classes ({classes.length})
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Teaching Classes
+          </p>
+          <span className="text-xs text-gray-400">{classes.length} classes</span>
         </div>
+
         {classes.length > 0 ? (
-          <table style={styles.table}>
+          <table className="w-full text-sm">
             <thead>
-              <tr>
-                <th style={styles.th}>#</th>
-                <th style={styles.th}>Subject</th>
-                <th style={styles.th}>Academic Year</th>
-                <th style={styles.th}>Status</th>
+              <tr className="bg-gray-50/60 border-b border-gray-100">
+                {['#', 'Subject', 'Academic Year', 'Status'].map(h => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {classes.map((cls, idx) => (
-                <tr key={cls.id}>
-                  <td style={styles.td}>{idx + 1}</td>
-                  <td style={styles.td}>
-                    <div style={styles.subjectCode}>
-                      {cls.subject_name?.split(' - ')[0]}
-                    </div>
-                    <div style={styles.subjectName}>
-                      {cls.subject_name?.split(' - ')[1] || cls.subject_name}
-                    </div>
-                  </td>
-                  <td style={styles.td}>{cls.academic_year}</td>
-                  <td style={styles.td}>
-                    <span style={{
-                      ...styles.statusBadge,
-                      backgroundColor: cls.is_active ? '#dcfce7' : '#f1f5f9',
-                      color:           cls.is_active ? '#16a34a' : '#64748b',
-                    }}>
-                      {cls.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {classes.map((cls, idx) => {
+                const [code, name] = cls.subject_name?.includes(' - ')
+                  ? cls.subject_name.split(' - ')
+                  : [null, cls.subject_name]
+                return (
+                  <motion.tr key={cls.id}
+                    initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ backgroundColor: 'var(--hover-row)' }}
+                    className="border-b border-gray-50">
+                    <td className="px-5 py-3 text-gray-400 text-xs">{idx + 1}</td>
+                    <td className="px-5 py-3">
+                      {code && <div className="text-xs font-bold text-amber-600 mb-0.5">{code}</div>}
+                      <div className="font-medium text-gray-800">{name}</div>
+                    </td>
+                    <td className="px-5 py-3 text-gray-500">{cls.academic_year}</td>
+                    <td className="px-5 py-3">
+                      <Badge
+                        label={cls.is_active ? 'Active' : 'Inactive'}
+                        color={cls.is_active ? '#16a34a' : '#64748b'}
+                        bg={cls.is_active ? '#dcfce7' : '#f1f5f9'}
+                      />
+                    </td>
+                  </motion.tr>
+                )
+              })}
             </tbody>
           </table>
         ) : (
-          <p style={styles.empty}>No classes assigned yet.</p>
+          <div className="py-12 text-center text-sm text-gray-400">No classes assigned yet.</div>
         )}
-      </div>
+      </motion.div>
     </div>
   )
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div style={{display:'flex', padding:'10px 0', borderBottom:'1px solid #f1f5f9'}}>
-      <span style={{width:'160px', color:'#64748b', fontSize:'14px'}}>{label}</span>
-      <span style={{color:'#0f172a', fontSize:'14px', fontWeight:'500'}}>{value || '—'}</span>
-    </div>
-  )
-}
-
-const styles = {
-  backBtn:     { background:'none', border:'1px solid #e2e8f0', borderRadius:'6px',
-                 padding:'6px 14px', cursor:'pointer', color:'#64748b',
-                 fontSize:'14px', marginBottom:'20px' },
-  header:      { display:'flex', alignItems:'center', gap:'16px', backgroundColor:'#fff',
-                 padding:'20px 24px', borderRadius:'12px', border:'1px solid #e2e8f0',
-                 marginBottom:'16px' },
-  avatar:      { width:'52px', height:'52px', borderRadius:'50%', backgroundColor:'#0d9488',
-                 display:'flex', alignItems:'center', justifyContent:'center',
-                 color:'#fff', fontSize:'22px', fontWeight:'700', flexShrink:0 },
-  heading:     { fontSize:'20px', fontWeight:'600', color:'#0f172a', margin:'0 0 8px 0' },
-  metaRow:     { display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' },
-  roleBadge:   { backgroundColor:'#0d9488', color:'#fff', padding:'3px 10px',
-                 borderRadius:'20px', fontSize:'12px', fontWeight:'500' },
-  meta:        { fontSize:'13px', color:'#64748b' },
-  card:        { backgroundColor:'#fff', padding:'20px', borderRadius:'12px',
-                 border:'1px solid #e2e8f0', marginBottom:'16px' },
-  cardTitle:   { fontSize:'13px', fontWeight:'600', color:'#94a3b8', textTransform:'uppercase',
-                 letterSpacing:'0.05em', marginBottom:'16px' },
-  table:       { width:'100%', borderCollapse:'collapse' },
-  th:          { textAlign:'left', padding:'10px 14px', fontSize:'13px', color:'#64748b',
-                 backgroundColor:'#f8fafc', borderBottom:'1px solid #f1f5f9' },
-  td:          { padding:'10px 14px', fontSize:'14px', color:'#374151',
-                 borderBottom:'1px solid #f8fafc' },
-  subjectCode: { fontSize:'12px', color:'#d97706', fontWeight:'600' },
-  subjectName: { fontSize:'14px', color:'#0f172a', fontWeight:'500' },
-  statusBadge: { padding:'3px 10px', borderRadius:'20px', fontSize:'12px', fontWeight:'500' },
-  empty:       { color:'#94a3b8', fontSize:'14px', padding:'8px 0' },
 }

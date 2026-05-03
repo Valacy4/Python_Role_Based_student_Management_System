@@ -1,12 +1,19 @@
 // src/pages/teacher/Classes.jsx
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { BookOpen } from 'lucide-react'
 import API from '../../api/axios'
+import PageHeader from '../../components/ui/PageHeader'
+import Badge from '../../components/ui/Badge'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } }
+const item      = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }
 
 export default function TeacherClasses() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
-  const [hovered, setHovered] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -17,64 +24,55 @@ export default function TeacherClasses() {
 
   return (
     <div>
-      <h2 style={styles.heading}>My Classes</h2>
-      <p style={styles.sub}>Click on a class to view and manage students</p>
+      <PageHeader title="My Classes" subtitle="Click on a class to view and manage students" />
 
-      {loading ? <p style={{color:'#64748b'}}>Loading...</p> : (
-        <div style={styles.grid}>
-          {classes.map(cls => (
-            <div
-              key={cls.id}
-              style={{
-                ...styles.card,
-                boxShadow: hovered === cls.id
-                  ? '0 4px 16px rgba(0,0,0,0.10)'
-                  : '0 1px 4px rgba(0,0,0,0.05)',
-                transform: hovered === cls.id ? 'translateY(-2px)' : 'none',
-              }}
-              onClick={() => navigate(`/teacher/classes/${cls.id}`)}
-              onMouseEnter={() => setHovered(cls.id)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              <div style={styles.subjectCode}>
-                {cls.subject_name.split(' - ')[0]}
-              </div>
-              <div style={styles.subjectName}>
-                {cls.subject_name.split(' - ')[1] || cls.subject_name}
-              </div>
-              <div style={styles.year}>{cls.academic_year}</div>
-              <div style={styles.cardFooter}>
-                <div style={{
-                  ...styles.statusDot,
-                  backgroundColor: cls.is_active ? '#16a34a' : '#94a3b8'
-                }}>
-                  {cls.is_active ? 'Active' : 'Inactive'}
-                </div>
-                <span style={styles.viewDetail}>View students →</span>
-              </div>
-            </div>
-          ))}
-          {classes.length === 0 && (
-            <p style={{color:'#64748b'}}>No classes assigned yet.</p>
-          )}
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
+      ) : classes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center mb-4">
+            <BookOpen size={24} className="text-teal-600" />
+          </div>
+          <p className="text-sm font-medium text-gray-700">No classes assigned yet</p>
+          <p className="text-xs text-gray-400 mt-1">Your classes will appear here once assigned</p>
+        </div>
+      ) : (
+        <motion.div variants={container} initial="hidden" animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {classes.map(cls => {
+            const [code, name] = cls.subject_name.includes(' - ')
+              ? cls.subject_name.split(' - ')
+              : [null, cls.subject_name]
+            return (
+              <motion.div key={cls.id} variants={item}
+                whileHover={{ y: -4, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(`/teacher/classes/${cls.id}`)}
+                className="bg-white rounded-xl border border-gray-100 p-5 cursor-pointer transition-shadow">
+                {/* Top accent bar */}
+                <div className="h-1 rounded-full bg-teal-500 mb-4 w-10" />
+
+                {code && (
+                  <p className="text-xs font-bold text-teal-600 tracking-wider mb-1">{code}</p>
+                )}
+                <h3 className="text-base font-semibold text-gray-900 mb-1 leading-snug">{name}</h3>
+                <p className="text-xs text-gray-400 mb-4">{cls.academic_year}</p>
+
+                <div className="flex items-center justify-between">
+                  <Badge
+                    label={cls.is_active ? 'Active' : 'Inactive'}
+                    color={cls.is_active ? '#16a34a' : '#94a3b8'}
+                    bg={cls.is_active ? '#dcfce7' : '#f1f5f9'}
+                  />
+                  <span className="text-xs text-teal-600 font-medium">View students →</span>
+                </div>
+              </motion.div>
+            )
+          })}
+        </motion.div>
       )}
     </div>
   )
-}
-
-const styles = {
-  heading:     { fontSize: '22px', fontWeight: '600', color: '#0f172a', marginBottom: '4px' },
-  sub:         { color: '#64748b', marginBottom: '24px', fontSize: '14px' },
-  grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: '16px' },
-  card:        { backgroundColor: '#fff', padding: '20px', borderRadius: '10px',
-                 border: '1px solid #e2e8f0', cursor: 'pointer',
-                 transition: 'box-shadow 0.2s, transform 0.2s' },
-  subjectCode: { fontSize: '13px', color: '#6366f1', fontWeight: '600', marginBottom: '4px' },
-  subjectName: { fontSize: '16px', fontWeight: '600', color: '#0f172a', marginBottom: '8px' },
-  year:        { fontSize: '13px', color: '#64748b', marginBottom: '12px' },
-  cardFooter:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  statusDot:   { display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
-                 color: '#fff', fontSize: '12px', fontWeight: '500' },
-  viewDetail:  { fontSize: '12px', color: '#6366f1', fontWeight: '500' },
 }
